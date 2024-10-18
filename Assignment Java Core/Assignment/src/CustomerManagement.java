@@ -14,9 +14,9 @@ public class CustomerManagement {
     }
 
     private String isValidEmail(String email, String type) {
-        if (!email.matches("^[\\w-\\.]+@[\\w-]+\\.[a-z]{2,}$")) {
+        if (!email.matches("^[\\w-\\.]+@[\\w-]+\\.[a-z]{2,}$") && !type.isEmpty()) {
             return "Invalid email format. Please try again.";
-        } else if (email.isEmpty() && type.equals("add")) {
+        } else if (email.isEmpty() && !type.isEmpty()) {
             return "Email cannot be empty. Please try again.";
         }
         if (type.equals("add")) {
@@ -30,9 +30,9 @@ public class CustomerManagement {
     }
 
     private String isValidPhone(String phone, String type) {
-        if (!phone.matches("\\d{10}")) {
+        if (!phone.matches("\\d{10}") && !type.isEmpty()) {
             return "Invalid phone format. Please try again.";
-        } else if (phone.isEmpty() && type.equals("add")) {
+        } else if (phone.isEmpty() && !type.isEmpty()) {
             return "Phone cannot be empty. Please try again.";
         }
         if (type.equals("add")) {
@@ -53,7 +53,7 @@ public class CustomerManagement {
                 if (createdFile) {
                     System.out.println("File created: " + FILE_NAME);
                 } else {
-                    System.out.println(FILE_NAME + " is already exists" );
+                    System.out.println(FILE_NAME + " is already exists");
                 }
             } catch (IOException ex) {
                 System.out.println("Error creating file: " + ex.getMessage());
@@ -74,7 +74,7 @@ public class CustomerManagement {
     }
 
     public void saveCustomersToFile() {
-        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(FILE_NAME))){
+        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(FILE_NAME))) {
             for (Customer customer : customers) {
                 bufferedWriter.write(customer.getName() + "," + customer.getEmail() + "," + customer.getPhone());
                 bufferedWriter.newLine();
@@ -88,11 +88,13 @@ public class CustomerManagement {
         if (customers.isEmpty()) {
             System.out.println("No customers found.");
         } else {
-            for (Customer customer : customers) {
-                System.out.println(customer);
+            System.out.println("====== Customers List ======");
+            for (int i = 0; i < customers.size(); i++) {
+                Customer customer = customers.get(i);
+                System.out.println(i + 1 + ". " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
+                System.out.println("--------------------------");
             }
         }
-
     }
 
     public void addCustomer() {
@@ -138,7 +140,7 @@ public class CustomerManagement {
         while (true) {
             System.out.print("Enter customer phone to find: ");
             phone = scanner.nextLine().trim();
-            String validatePhone = isValidPhone(phone, "");
+            String validatePhone = isValidPhone(phone, "find");
             if (validatePhone != null) {
                 System.out.println(validatePhone);
             } else {
@@ -148,7 +150,8 @@ public class CustomerManagement {
 
         for (Customer customer : customers) {
             if (customer.getPhone().equals(phone)) {
-                System.out.println("Customer found: " + customer);
+                System.out.println("Customer found" + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
+                System.out.println("--------------------------");
                 return;
             }
         }
@@ -161,7 +164,7 @@ public class CustomerManagement {
         while (true) {
             System.out.print("Enter customer phone to edit: ");
             phone = scanner.nextLine().trim();
-            String validatePhone = isValidPhone(phone, "");
+            String validatePhone = isValidPhone(phone, "find");
             if (validatePhone != null) {
                 System.out.println(validatePhone);
             } else {
@@ -171,20 +174,13 @@ public class CustomerManagement {
 
         for (Customer customer : customers) {
             if (customer.getPhone().equals(phone)) {
-                System.out.println("Editing customer: " + customer);
+                System.out.println("Editing customer: " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
+                System.out.println("--------------------------");
                 String updatedName, updatedEmail, updatedPhone;
-                while (true){
-                    System.out.print("Enter new name (Keep empty to use old name): ");
-                    String newName = scanner.nextLine().trim();
-                    if (newName.isEmpty()) {
-                        System.out.println("Name cannot be empty. Please try again.");
-                    } else {
-                        updatedName = newName;
-                        break;
-                    }
-                }
-
-                while (true){
+                System.out.print("Enter new name (Keep empty to use old name): ");
+                String newName = scanner.nextLine().trim();
+                updatedName = newName;
+                while (true) {
                     System.out.print("Enter new email (Keep empty to use old email): ");
                     String newEmail = scanner.nextLine().trim();
                     String validateEmail = isValidEmail(newEmail, "");
@@ -196,7 +192,7 @@ public class CustomerManagement {
                     }
                 }
 
-                while (true){
+                while (true) {
                     System.out.print("Enter new phone (Keep empty to use old phone): ");
                     String newPhone = scanner.nextLine().trim();
                     String validatePhone = isValidPhone(newPhone, "");
@@ -225,24 +221,39 @@ public class CustomerManagement {
         while (true) {
             System.out.print("Enter customer phone to delete: ");
             phone = scanner.nextLine().trim();
-            String validatePhone = isValidPhone(phone, "");
+            String validatePhone = isValidPhone(phone, "find");
+
             if (validatePhone != null) {
                 System.out.println(validatePhone);
             } else {
                 break;
             }
         }
-
-        for (Iterator<Customer> iterator = customers.iterator(); iterator.hasNext();) {
+        boolean foundCustomer = false;
+        for (Iterator<Customer> iterator = customers.iterator(); iterator.hasNext(); ) {
             Customer customer = iterator.next();
             if (customer.getPhone().equals(phone)) {
-                iterator.remove();
-                saveCustomersToFile();
-                System.out.println("Customer deleted successfully.");
-                return;
+
+                foundCustomer = true;
+
+                System.out.println("Customer: " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
+                System.out.println("--------------------------");
+                System.out.print("Are you sure you want to delete this customer? (yes/no): ");
+                String confirmation = scanner.nextLine().trim().toLowerCase();
+
+                if (confirmation.equals("yes")) {
+                    iterator.remove();
+                    saveCustomersToFile();
+                    System.out.println("Customer deleted successfully.");
+                } else {
+                    System.out.println("Deletion cancelled.");
+                }
+                break;
             }
         }
-        System.out.println("Customer not found.");
-    }
 
+        if (!foundCustomer) {
+            System.out.println("Customer not found.");
+        }
+    }
 }
