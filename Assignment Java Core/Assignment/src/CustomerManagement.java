@@ -1,46 +1,45 @@
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class CustomerManagement {
     private final String FILE_NAME = "customers.txt";
-    private List<Customer> customers;
+    private final List<Customer> customers;
+    private final Set<String> emails;
+    private final Set<String> phones;
+    private final Map<String, Customer> customerMap;
+    private final Stack<Customer> editStack;
+    private final Stack<Customer> deleteStack;
 
     public CustomerManagement() {
         customers = new ArrayList<>();
+        emails = new HashSet<>();
+        phones = new HashSet<>();
+        customerMap = new HashMap<>();
+        editStack = new Stack<>();
+        deleteStack = new Stack<>();
         loadCustomersFromFile();
     }
 
     private String isValidEmail(String email, String type) {
-        if (!email.matches("^[\\w-\\.]+@[\\w-]+\\.[a-z]{2,}$") && !type.isEmpty()) {
+        if (!email.matches("^[\\w-.]+@[\\w-]+\\.[a-z]{2,}$") && !type.equals("update")) {
             return "Invalid email format. Please try again.";
-        } else if (email.isEmpty() && !type.isEmpty()) {
+        } else if (email.isEmpty() && !type.equals("update")) {
             return "Email cannot be empty. Please try again.";
         }
-        if (type.equals("add")) {
-            for (Customer customer : customers) {
-                if (customer.getEmail().equals(email)) {
-                    return "Email is already in use. Please choose another one.";
-                }
-            }
+        if (type.equals("add") && emails.contains(email)) {
+            return "Email is already in use. Please choose another one.";
         }
         return null;
     }
 
     private String isValidPhone(String phone, String type) {
-        if (!phone.matches("\\d{10}") && !type.isEmpty()) {
+        if (!phone.matches("\\d{10}") && !type.equals("update")) {
             return "Invalid phone format. Please try again.";
-        } else if (phone.isEmpty() && !type.isEmpty()) {
+        } else if (phone.isEmpty() && !type.equals("update")) {
             return "Phone cannot be empty. Please try again.";
         }
-        if (type.equals("add")) {
-            for (Customer customer : customers) {
-                if (customer.getPhone().equals(phone)) {
-                    return "Phone is already in use. Please choose another one.";
-                }
-            }
+        if (type.equals("add") && phones.contains(phone)) {
+            return "Phone is already in use. Please choose another one.";
         }
         return null;
     }
@@ -65,7 +64,11 @@ public class CustomerManagement {
             while ((line = bufferedReader.readLine()) != null) {
                 String[] customerData = line.split(",");
                 if (customerData.length == 3) {
-                    customers.add(new Customer(customerData[0], customerData[1], customerData[2]));
+                    Customer customer = new Customer(customerData[0], customerData[1], customerData[2]);
+                    customers.add(customer);
+                    emails.add(customer.getEmail());
+                    phones.add(customer.getPhone());
+                    customerMap.put(customer.getPhone(), customer);
                 }
             }
         } catch (IOException ex) {
@@ -120,7 +123,7 @@ public class CustomerManagement {
             break;
         }
         while (true) {
-            System.out.print("Enter customer phone: ");
+            System.out.print("Enter customer phone (10 digits): ");
             phone = scanner.nextLine().trim();
             String validatePhone = isValidPhone(phone, "add");
             if (validatePhone != null) {
@@ -129,40 +132,33 @@ public class CustomerManagement {
             }
             break;
         }
-        customers.add(new Customer(name, email, phone));
+        Customer newCustomer = new Customer(name, email, phone);
+        customers.add(newCustomer);
+        emails.add(email);
+        phones.add(phone);
+        customerMap.put(phone, newCustomer);
         saveCustomersToFile();
         System.out.println("Customer added successfully.");
     }
 
     public void findCustomerByPhone() {
         Scanner scanner = new Scanner(System.in);
-        String phone;
-        while (true) {
-            System.out.print("Enter customer phone to find: ");
-            phone = scanner.nextLine().trim();
-            String validatePhone = isValidPhone(phone, "find");
-            if (validatePhone != null) {
-                System.out.println(validatePhone);
-            } else {
-                break;
-            }
+        System.out.println("Enter customer phone to search (10 digits): ");
+        String phone = scanner.nextLine().trim();
+        Customer customer = customerMap.get(phone);
+        if (customer != null) {
+            System.out.println("Customer found" + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
+            System.out.println("--------------------------");
+        } else {
+            System.out.println("Customer not found.");
         }
-
-        for (Customer customer : customers) {
-            if (customer.getPhone().equals(phone)) {
-                System.out.println("Customer found" + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
-                System.out.println("--------------------------");
-                return;
-            }
-        }
-        System.out.println("Customer not found.");
     }
 
     public void editCustomerByPhone() {
         Scanner scanner = new Scanner(System.in);
         String phone;
         while (true) {
-            System.out.print("Enter customer phone to edit: ");
+            System.out.print("Enter customer phone to edit (10 digits): ");
             phone = scanner.nextLine().trim();
             String validatePhone = isValidPhone(phone, "find");
             if (validatePhone != null) {
@@ -172,54 +168,64 @@ public class CustomerManagement {
             }
         }
 
-        for (Customer customer : customers) {
-            if (customer.getPhone().equals(phone)) {
-                System.out.println("Editing customer: " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
-                System.out.println("--------------------------");
-                String updatedName, updatedEmail, updatedPhone;
-                System.out.print("Enter new name (Keep empty to use old name): ");
-                String newName = scanner.nextLine().trim();
-                updatedName = newName;
-                while (true) {
-                    System.out.print("Enter new email (Keep empty to use old email): ");
-                    String newEmail = scanner.nextLine().trim();
-                    String validateEmail = isValidEmail(newEmail, "");
+        Customer customer = customerMap.get(phone);
+        if (customer != null) {
+            editStack.push(new Customer(customer.getName(), customer.getEmail(), customer.getPhone()));
+            System.out.println("Editing customer: " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
+            System.out.println("--------------------------");
+            String updatedName, updatedEmail, updatedPhone;
+            System.out.print("Enter new name (Keep empty to use old name): ");
+            updatedName = scanner.nextLine().trim();
+
+            if (updatedName.isEmpty()) {
+                updatedName = customer.getName();
+            }
+
+            while (true){
+                System.out.print("Enter new email (Keep empty to use old email): ");
+                updatedEmail = scanner.nextLine().trim();
+                if (updatedEmail.isEmpty()) {
+                    updatedEmail = customer.getEmail();
+                } else {
+                    String validateEmail = isValidEmail(updatedEmail, "update");
                     if (validateEmail != null) {
                         System.out.println(validateEmail);
-                    } else {
-                        updatedEmail = newEmail;
-                        break;
+                        continue;
                     }
                 }
+                break;
+            }
 
-                while (true) {
-                    System.out.print("Enter new phone (Keep empty to use old phone): ");
-                    String newPhone = scanner.nextLine().trim();
-                    String validatePhone = isValidPhone(newPhone, "");
+            while (true){
+                System.out.print("Enter new phone (10 digits or keep empty to use old phone): ");
+                updatedPhone = scanner.nextLine().trim();
+                if (updatedPhone.isEmpty()) {
+                    updatedPhone = customer.getPhone();
+                } else {
+                    String validatePhone = isValidPhone(updatedPhone, "update");
                     if (validatePhone != null) {
                         System.out.println(validatePhone);
-                    } else {
-                        updatedPhone = newPhone;
-                        break;
+                        continue;
                     }
                 }
-
-                customer.setName(updatedName);
-                customer.setEmail(updatedEmail);
-                customer.setPhone(updatedPhone);
-                saveCustomersToFile();
-                System.out.println("Customer information updated successfully.");
-                return;
+                break;
             }
+
+            customer.setName(updatedName);
+            customer.setEmail(updatedEmail);
+            customer.setPhone(updatedPhone);
+            saveCustomersToFile();
+            System.out.println("Customer information updated successfully.");
+        } else {
+            System.out.println("Customer not found.");
         }
-        System.out.println("Customer not found.");
     }
 
     public void deleteCustomerByPhone() {
         Scanner scanner = new Scanner(System.in);
         String phone;
         while (true) {
-            System.out.print("Enter customer phone to delete: ");
+            System.out.print("Enter customer phone to delete (10 digits): ");
             phone = scanner.nextLine().trim();
             String validatePhone = isValidPhone(phone, "find");
 
@@ -254,6 +260,28 @@ public class CustomerManagement {
 
         if (!foundCustomer) {
             System.out.println("Customer not found.");
+        }
+    }
+
+    public void undoLastEdit() {
+        if (editStack.isEmpty()) {
+            System.out.println("Nothing to undo.");
+        } else {
+            Customer lastEditedCustomer = editStack.pop();
+            customerMap.put(lastEditedCustomer.getPhone(), lastEditedCustomer);
+            saveCustomersToFile();
+            System.out.println("Last edit undone successfully.");
+        }
+    }
+
+    public void undoLastDelete() {
+        if (deleteStack.isEmpty()) {
+            System.out.println("Nothing to undo.");
+        } else {
+            Customer lastDeletedCustomer = deleteStack.pop();
+            customerMap.put(lastDeletedCustomer.getPhone(), lastDeletedCustomer);
+            saveCustomersToFile();
+            System.out.println("Last delete undone successfully.");
         }
     }
 }

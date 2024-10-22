@@ -4,7 +4,7 @@ public class Main {
     public static void main(String[] args) {
         CustomerManagement customerManagement = new CustomerManagement();
         Scanner scanner = new Scanner(System.in);
-        while (true){
+        while (true) {
             int choice;
             System.out.println("Welcome to the Customer Management System");
             System.out.println("1. All Customers");
@@ -12,6 +12,8 @@ public class Main {
             System.out.println("3. Search Customer");
             System.out.println("4. Edit Customer");
             System.out.println("5. Delete Customer");
+            System.out.println("6. Undo last edit");
+            System.out.println("7. Undo last delete");
             System.out.println("0. Exit");
             System.out.println("Please enter your choice:");
 
@@ -35,6 +37,12 @@ public class Main {
                     case 5:
                         customerManagement.deleteCustomerByPhone();
                         break;
+                    case 6:
+                        customerManagement.undoLastEdit();
+                        break;
+                    case 7:
+                        customerManagement.undoLastDelete();
+                        break;
                     case 0:
                         System.out.println("See ya!");
                         return;
@@ -43,7 +51,7 @@ public class Main {
                 }
             } catch (Exception ex) {
                 System.out.println("Invalid choice! Please try again." + ex.getMessage());
-                scanner.next();
+                scanner.nextLine();
             }
         }
     }
