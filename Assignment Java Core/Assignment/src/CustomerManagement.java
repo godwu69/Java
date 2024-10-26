@@ -7,7 +7,6 @@ public class CustomerManagement {
     private final Set<String> emails;
     private final Set<String> phones;
     private final Map<String, Customer> customerMap;
-    private final Stack<Customer> editStack;
     private final Stack<Customer> deleteStack;
 
     public CustomerManagement() {
@@ -15,7 +14,6 @@ public class CustomerManagement {
         emails = new HashSet<>();
         phones = new HashSet<>();
         customerMap = new HashMap<>();
-        editStack = new Stack<>();
         deleteStack = new Stack<>();
         loadCustomersFromFile();
     }
@@ -76,17 +74,6 @@ public class CustomerManagement {
         }
     }
 
-    public void saveCustomersToFile() {
-        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(FILE_NAME))) {
-            for (Customer customer : customers) {
-                bufferedWriter.write(customer.getName() + "," + customer.getEmail() + "," + customer.getPhone());
-                bufferedWriter.newLine();
-            }
-        } catch (IOException ex) {
-            System.out.println("Failed to save customers." + ex.getMessage());
-        }
-    }
-
     public void getAllCustomers() {
         if (customers.isEmpty()) {
             System.out.println("No customers found.");
@@ -94,9 +81,64 @@ public class CustomerManagement {
             System.out.println("====== Customers List ======");
             for (int i = 0; i < customers.size(); i++) {
                 Customer customer = customers.get(i);
-                System.out.println(i + 1 + ". " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
+                System.out.println(i + ". " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
                 System.out.println("--------------------------");
             }
+        }
+    }
+
+    public void saveCustomerToFile(Customer customer) {
+        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(FILE_NAME, true))) {
+            bufferedWriter.write(customer.getName() + "," + customer.getEmail() + "," + customer.getPhone());
+            bufferedWriter.newLine();
+        } catch (IOException ex) {
+            System.out.println("Failed to save customers." + ex.getMessage());
+        }
+    }
+
+    public void updateCustomerInFile(String phone, String newName, String newEmail, String newPhone) {
+        try {
+            File tempFile = new File("temp_customers.txt");
+            try (RandomAccessFile randomAccessFile = new RandomAccessFile(FILE_NAME, "r");
+                 BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+                String line;
+                while ((line = randomAccessFile.readLine()) != null) {
+                    String[] parts = line.split(",");
+                    if (parts.length == 3 && parts[2].trim().equals(phone)) {
+                        writer.write(newName + "," + newEmail + "," + newPhone);
+                    } else {
+                        writer.write(line);
+                    }
+                    writer.newLine();
+                }
+            }
+            File originalFile = new File(FILE_NAME);
+            originalFile.delete();
+            tempFile.renameTo(originalFile);
+        } catch (IOException ex) {
+            System.out.println("Failed to update customer information: " + ex.getMessage());
+        }
+    }
+
+    public void deleteCustomerFromFile(String phone) {
+        try {
+            File tempFile = new File("temp_customers.txt");
+            try (RandomAccessFile randomAccessFile = new RandomAccessFile(FILE_NAME, "r");
+                 BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+                String line;
+                while ((line = randomAccessFile.readLine()) != null) {
+                    String[] parts = line.split(",");
+                    if (parts.length == 3 && !parts[2].trim().equals(phone)) {
+                        writer.write(line);
+                        writer.newLine();
+                    }
+                }
+            }
+            File originalFile = new File(FILE_NAME);
+            originalFile.delete();
+            tempFile.renameTo(originalFile);
+        } catch (IOException ex) {
+            System.out.println("Failed to delete customer information: " + ex.getMessage());
         }
     }
 
@@ -137,21 +179,8 @@ public class CustomerManagement {
         emails.add(email);
         phones.add(phone);
         customerMap.put(phone, newCustomer);
-        saveCustomersToFile();
+        saveCustomerToFile(newCustomer);
         System.out.println("Customer added successfully.");
-    }
-
-    public void findCustomerByPhone() {
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Enter customer phone to search (10 digits): ");
-        String phone = scanner.nextLine().trim();
-        Customer customer = customerMap.get(phone);
-        if (customer != null) {
-            System.out.println("Customer found" + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
-            System.out.println("--------------------------");
-        } else {
-            System.out.println("Customer not found.");
-        }
     }
 
     public void editCustomerByPhone() {
@@ -170,7 +199,6 @@ public class CustomerManagement {
 
         Customer customer = customerMap.get(phone);
         if (customer != null) {
-            editStack.push(new Customer(customer.getName(), customer.getEmail(), customer.getPhone()));
             System.out.println("Editing customer: " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
             System.out.println("--------------------------");
             String updatedName, updatedEmail, updatedPhone;
@@ -214,8 +242,21 @@ public class CustomerManagement {
             customer.setName(updatedName);
             customer.setEmail(updatedEmail);
             customer.setPhone(updatedPhone);
-            saveCustomersToFile();
+            updateCustomerInFile(phone, updatedName, updatedEmail, updatedPhone);
             System.out.println("Customer information updated successfully.");
+        } else {
+            System.out.println("Customer not found.");
+        }
+    }
+
+    public void findCustomerByPhone() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Enter customer phone to search (10 digits): ");
+        String phone = scanner.nextLine().trim();
+        Customer customer = customerMap.get(phone);
+        if (customer != null) {
+            System.out.println("Customer found" + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
+            System.out.println("--------------------------");
         } else {
             System.out.println("Customer not found.");
         }
@@ -239,17 +280,15 @@ public class CustomerManagement {
         for (Iterator<Customer> iterator = customers.iterator(); iterator.hasNext(); ) {
             Customer customer = iterator.next();
             if (customer.getPhone().equals(phone)) {
-
                 foundCustomer = true;
-
+                deleteStack.push(customer);
                 System.out.println("Customer: " + "\n" + " Name: " + customer.getName() + "\n" + " Email: " + customer.getEmail() + "\n" + " Phone: " + customer.getPhone());
                 System.out.println("--------------------------");
-                System.out.print("Are you sure you want to delete this customer? (yes/no): ");
+                System.out.print("Are you sure you want to delete this customer? (Y/N): ");
                 String confirmation = scanner.nextLine().trim().toLowerCase();
-
-                if (confirmation.equals("yes")) {
+                if (confirmation.equals("y")) {
                     iterator.remove();
-                    saveCustomersToFile();
+                    deleteCustomerFromFile(phone);
                     System.out.println("Customer deleted successfully.");
                 } else {
                     System.out.println("Deletion cancelled.");
@@ -257,31 +296,76 @@ public class CustomerManagement {
                 break;
             }
         }
-
         if (!foundCustomer) {
             System.out.println("Customer not found.");
         }
     }
 
-    public void undoLastEdit() {
-        if (editStack.isEmpty()) {
-            System.out.println("Nothing to undo.");
-        } else {
-            Customer lastEditedCustomer = editStack.pop();
-            customerMap.put(lastEditedCustomer.getPhone(), lastEditedCustomer);
-            saveCustomersToFile();
-            System.out.println("Last edit undone successfully.");
-        }
-    }
-
     public void undoLastDelete() {
+        Scanner scanner = new Scanner(System.in);
         if (deleteStack.isEmpty()) {
             System.out.println("Nothing to undo.");
         } else {
-            Customer lastDeletedCustomer = deleteStack.pop();
-            customerMap.put(lastDeletedCustomer.getPhone(), lastDeletedCustomer);
-            saveCustomersToFile();
-            System.out.println("Last delete undone successfully.");
+            System.out.print("Are you sure you want to undo last delete? (Y/N): ");
+            String confirmation = scanner.nextLine().trim().toLowerCase();
+            if (confirmation.equals("y")) {
+                Customer lastDeletedCustomer = deleteStack.pop();
+                customerMap.put(lastDeletedCustomer.getPhone(), lastDeletedCustomer);
+                saveCustomerToFile(lastDeletedCustomer);
+                System.out.println("Last delete undone successfully.");
+            } else {
+                System.out.println("Undo cancelled.");
+            }
         }
     }
+
+    public void batchAddCustomer() {
+        Scanner scanner = new Scanner(System.in);
+        int quantity;
+        while (true) {
+            System.out.print("Enter the number of customers to add: ");
+            if (scanner.hasNextInt()) {
+                quantity = scanner.nextInt();
+                scanner.nextLine();
+                if (quantity > 0) {
+                    break;
+                } else {
+                    System.out.println("Please enter a positive number.");
+                }
+            } else {
+                System.out.println("Invalid input. Please enter a valid number.");
+                scanner.next();
+            }
+        }
+        System.out.println("Adding " + quantity + " customers...");
+        addRandomCustomers(quantity);
+    }
+
+
+    public void addRandomCustomers(int quantity) {
+        Random random = new Random();
+        for (int i = 0; i < quantity; i++) {
+            String name = "Customer" + (customers.size() + 1);
+            String email;
+            String phone;
+
+            do {
+                email = "customer" + UUID.randomUUID() + "@example.com";
+            } while (emails.contains(email));
+
+            do {
+                phone = String.format("%010d", random.nextInt(900000000) + 100000000);
+            } while (phones.contains(phone));
+
+            Customer newCustomer = new Customer(name, email, phone);
+            customers.add(newCustomer);
+            emails.add(email);
+            phones.add(phone);
+            customerMap.put(phone, newCustomer);
+            saveCustomerToFile(newCustomer);
+            System.out.println(i);
+        }
+        System.out.println(quantity + " customers added successfully.");
+    }
+
 }
